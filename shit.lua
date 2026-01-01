@@ -1,154 +1,197 @@
--- [[ CONFIGURATION ]]
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
+
+-- --- 1. SETTINGS ---
 local Config = {
-    Title = "Phoenix Hub | Key System",
-    VerificationURL = "https://luarmor.org/?verify=1&key=",
-    GetKeyURL = "https://luarmor.org/",
-    MainScriptURL = "https://raw.githubusercontent.com/egor2078f/Lurkv3/refs/heads/main/main.lua",
-    AccentColor = Color3.fromRGB(34, 197, 94), -- Green
-    BgColor = Color3.fromRGB(15, 23, 42)
+    FlyEnabled = false,
+    FlySpeed = 70,
+    MenuKey = Enum.KeyCode.RightShift,
+    UI_Color = Color3.fromRGB(0, 170, 255)
 }
 
--- [[ SERVICES ]]
-local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
+-- --- 2. ADVANCED TERMINAL (Top Left) ---
+local ConsoleGui = Instance.new("ScreenGui", PlayerGui)
+local ConsoleFrame = Instance.new("Frame", ConsoleGui)
+ConsoleFrame.Size = UDim2.new(0, 280, 0, 200)
+ConsoleFrame.Position = UDim2.new(0, 15, 0, 15)
+ConsoleFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+Instance.new("UICorner", ConsoleFrame)
 
--- [[ UI CONSTRUCTOR ]]
-local function createKeyUI()
-    local UI = {}
-    
-    UI.ScreenGui = Instance.new("ScreenGui")
-    UI.ScreenGui.Name = "ModernKeySystem"
-    UI.ScreenGui.Parent = CoreGui
-    
-    -- Main Window
-    UI.MainFrame = Instance.new("Frame")
-    UI.MainFrame.Size = UDim2.new(0, 320, 0, 240)
-    UI.MainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
-    UI.MainFrame.BackgroundColor3 = Config.BgColor
-    UI.MainFrame.BorderSizePixel = 0
-    UI.MainFrame.Parent = UI.ScreenGui
-    
-    Instance.new("UICorner", UI.MainFrame).CornerRadius = UDim.new(0, 8)
-    local Stroke = Instance.new("UIStroke", UI.MainFrame)
-    Stroke.Color = Color3.fromRGB(30, 41, 59)
-    Stroke.Thickness = 2
+local LogScroll = Instance.new("ScrollingFrame", ConsoleFrame)
+LogScroll.Size = UDim2.new(1, -10, 1, -10)
+LogScroll.Position = UDim2.new(0, 5, 0, 5)
+LogScroll.BackgroundTransparency = 1
+LogScroll.ScrollBarThickness = 2
+Instance.new("UIListLayout", LogScroll).Padding = UDim.new(0, 2)
 
-    -- Title Bar
-    UI.Title = Instance.new("TextLabel")
-    UI.Title.Size = UDim2.new(1, 0, 0, 40)
-    UI.Title.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
-    UI.Title.Text = Config.Title
-    UI.Title.TextColor3 = Color3.new(1, 1, 1)
-    UI.Title.Font = Enum.Font.GothamBold
-    UI.Title.TextSize = 16
-    UI.Title.Parent = UI.MainFrame
-    Instance.new("UICorner", UI.Title).CornerRadius = UDim.new(0, 8)
-
-    -- Input Box
-    UI.KeyInput = Instance.new("TextBox")
-    UI.KeyInput.Size = UDim2.new(0, 260, 0, 40)
-    UI.KeyInput.Position = UDim2.new(0.5, -130, 0.35, 0)
-    UI.KeyInput.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
-    UI.KeyInput.PlaceholderText = "Enter License Key..."
-    UI.KeyInput.Text = ""
-    UI.KeyInput.TextColor3 = Color3.new(1, 1, 1)
-    UI.KeyInput.Font = Enum.Font.Gotham
-    UI.KeyInput.Parent = UI.MainFrame
-    Instance.new("UICorner", UI.KeyInput).CornerRadius = UDim.new(0, 6)
-
-    -- Buttons Helper
-    local function createButton(name, text, pos, color)
-        local btn = Instance.new("TextButton")
-        btn.Name = name
-        btn.Size = UDim2.new(0, 125, 0, 35)
-        btn.Position = pos
-        btn.BackgroundColor3 = color
-        btn.Text = text
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 14
-        btn.Parent = UI.MainFrame
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        return btn
-    end
-
-    UI.Submit = createButton("Submit", "Submit Key", UDim2.new(0.5, 5, 0.65, 0), Config.AccentColor)
-    UI.GetKey = createButton("GetKey", "Get Key", UDim2.new(0.5, -130, 0.65, 0), Color3.fromRGB(51, 65, 85))
-
-    -- Status Label
-    UI.Status = Instance.new("TextLabel")
-    UI.Status.Size = UDim2.new(1, -40, 0, 20)
-    UI.Status.Position = UDim2.new(0, 20, 0.85, 0)
-    UI.Status.BackgroundTransparency = 1
-    UI.Status.Text = "Awaiting input..."
-    UI.Status.TextColor3 = Color3.fromRGB(148, 163, 184)
-    UI.Status.Font = Enum.Font.Gotham
-    UI.Status.TextSize = 12
-    UI.Status.Parent = UI.MainFrame
-
-    return UI
+local function Log(type, msg)
+    local colors = {info = Color3.new(0.5,0.7,1), success = Color3.new(0.4,1,0.4), warn = Color3.new(1,0.8,0), err = Color3.new(1,0.3,0)}
+    local l = Instance.new("TextLabel", LogScroll)
+    l.Size = UDim2.new(1, 0, 0, 18)
+    l.BackgroundTransparency = 1
+    l.Font = Enum.Font.Code
+    l.TextSize = 12
+    l.Text = string.format("[%s] %s", type:upper(), msg)
+    l.TextColor3 = colors[type] or Color3.new(1, 1, 1)
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    LogScroll.CanvasSize = UDim2.new(0, 0, 0, LogScroll.UIListLayout.AbsoluteContentSize.Y)
+    LogScroll.CanvasPosition = Vector2.new(0, 9999)
 end
 
--- [[ LOGIC ]]
-local function verifyKey(key)
-    local success, response = pcall(function()
-        return game:HttpGet(Config.VerificationURL .. key)
-    end)
+-- --- 3. MAIN HUB STRUCTURE ---
+local MainGui = Instance.new("ScreenGui", PlayerGui)
+local Main = Instance.new("Frame", MainGui)
+Main.Size = UDim2.new(0, 550, 0, 350)
+Main.Position = UDim2.new(0.5, -275, 0.5, -175)
+Main.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+Instance.new("UICorner", Main)
+Main.Active = true
+Main.Draggable = true
+
+local Sidebar = Instance.new("Frame", Main)
+Sidebar.Size = UDim2.new(0, 140, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+Instance.new("UIListLayout", Sidebar)
+
+local Container = Instance.new("Frame", Main)
+Container.Size = UDim2.new(1, -150, 1, -20)
+Container.Position = UDim2.new(0, 145, 0, 10)
+Container.BackgroundTransparency = 1
+
+local pages = {}
+local function CreateTab(name)
+    local p = Instance.new("ScrollingFrame", Container)
+    p.Size = UDim2.new(1, 0, 1, 0)
+    p.BackgroundTransparency = 1
+    p.Visible = false
+    p.ScrollBarThickness = 2
+    Instance.new("UIListLayout", p).Padding = UDim.new(0, 8)
     
-    if success then
-        return response == "valid", response
-    end
-    return false, "http_error"
+    local b = Instance.new("TextButton", Sidebar)
+    b.Size = UDim2.new(1, 0, 0, 45)
+    b.BackgroundTransparency = 1
+    b.Text = "  " .. name
+    b.TextColor3 = Color3.new(0.5, 0.5, 0.5)
+    b.Font = Enum.Font.GothamBold
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    
+    b.MouseButton1Click:Connect(function()
+        for _, v in pairs(pages) do v.Visible = false end
+        for _, btn in pairs(Sidebar:GetChildren()) do if btn:IsA("TextButton") then btn.TextColor3 = Color3.new(0.5, 0.5, 0.5) end end
+        p.Visible = true
+        b.TextColor3 = Config.UI_Color
+    end)
+    pages[name] = p
+    return p
 end
 
-local function runMainScript()
-    local success, err = pcall(function()
-        local Games = loadstring(game:HttpGet(Config.MainScriptURL, true))()
-        if type(Games) == "table" and Games[game.PlaceId] then
-            loadstring(game:HttpGet(Games[game.PlaceId]))()
-        end
-    end)
-    if not success then warn("Main script error: " .. tostring(err)) end
+local function AddButton(tab, text, callback)
+    local btn = Instance.new("TextButton", tab)
+    btn.Size = UDim2.new(0.95, 0, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    btn.Text = text
+    btn.TextColor3 = Color3.new(0.9, 0.9, 0.9)
+    btn.Font = Enum.Font.Gotham
+    Instance.new("UICorner", btn)
+    btn.MouseButton1Click:Connect(callback)
 end
 
-local function init()
-    local ui = createKeyUI()
+-- --- 4. WASD FLY LOGIC ---
+local function FlyLoop()
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    local hum = char:WaitForChild("Humanoid")
     
-    ui.GetKey.MouseButton1Click:Connect(function()
-        if setclipboard then
-            setclipboard(Config.GetKeyURL)
-            ui.Status.Text = "Link copied to clipboard!"
-            ui.Status.TextColor3 = Color3.fromRGB(59, 130, 246)
-        else
-            ui.Status.Text = "Please visit: " .. Config.GetKeyURL
-        end
-    end)
-    
-    ui.Submit.MouseButton1Click:Connect(function()
-        local key = ui.KeyInput.Text
-        if key == "" then
-            ui.Status.Text = "Input cannot be empty!"
-            ui.Status.TextColor3 = Color3.fromRGB(239, 68, 68)
+    local bv = Instance.new("BodyVelocity", root)
+    local bg = Instance.new("BodyGyro", root)
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+
+    RunService:BindToRenderStep("Flight", 1, function()
+        if not Config.FlyEnabled then
+            bv:Destroy(); bg:Destroy()
+            hum.PlatformStand = false
+            RunService:UnbindFromRenderStep("Flight")
             return
         end
-
-        ui.Status.Text = "Verifying..."
-        ui.Status.TextColor3 = Color3.new(1, 1, 1)
-
-        task.spawn(function()
-            local success, status = verifyKey(key)
-            if success then
-                ui.Status.Text = "Success! Loading..."
-                ui.Status.TextColor3 = Color3.fromRGB(34, 197, 94)
-                task.wait(1)
-                ui.ScreenGui:Destroy()
-                runMainScript()
-            else
-                ui.Status.Text = "Verification failed: " .. (status or "Invalid")
-                ui.Status.TextColor3 = Color3.fromRGB(239, 68, 68)
-            end
-        end)
+        hum.PlatformStand = true
+        local dir = Vector3.new(0,0,0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0,1,0) end
+        
+        bv.Velocity = dir.Unit * Config.FlySpeed
+        if dir == Vector3.new(0,0,0) then bv.Velocity = Vector3.new(0,0,0) end
+        bg.CFrame = Camera.CFrame
     end)
 end
 
-init()
+-- --- 5. TABS & CONTENT ---
+local mainTab = CreateTab("LocalPlayer")
+local playerTab = CreateTab("Players")
+local visTab = CreateTab("Visuals")
+local myTab = CreateTab("MyScripts")
+
+-- Flight Control
+AddButton(mainTab, "Toggle WASD Flight", function()
+    Config.FlyEnabled = not Config.FlyEnabled
+    Log(Config.FlyEnabled and "success" or "warn", "Flight: " .. tostring(Config.FlyEnabled))
+    if Config.FlyEnabled then FlyLoop() end
+end)
+
+AddButton(mainTab, "Speed Boost", function()
+    local h = Player.Character:FindFirstChildOfClass("Humanoid")
+    h.WalkSpeed = (h.WalkSpeed == 16 and 50 or 16)
+    Log("info", "WalkSpeed set to " .. h.WalkSpeed)
+end)
+
+-- Player TP Logic
+local function RefreshPlayers()
+    for _, v in pairs(playerTab:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= Player then
+            AddButton(playerTab, "TP to: " .. p.DisplayName, function()
+                if p.Character then 
+                    Player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
+                    Log("success", "Teleported to " .. p.Name)
+                end
+            end)
+        end
+    end
+end
+Players.PlayerAdded:Connect(RefreshPlayers)
+Players.PlayerRemoving:Connect(RefreshPlayers)
+RefreshPlayers()
+
+-- Visuals
+AddButton(visTab, "Full Bright", function()
+    game:GetService("Lighting").Brightness = 2
+    game:GetService("Lighting").ClockTime = 14
+    Log("info", "Lighting Adjusted")
+end)
+
+-- MyScripts Placeholder
+AddButton(myTab, "Log My Name", function()
+    Log("info", "User: " .. Player.Name)
+end)
+
+-- --- 6. VISIBILITY TOGGLE ---
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Config.MenuKey then
+        Main.Visible = not Main.Visible
+        ConsoleFrame.Visible = Main.Visible
+    end
+end)
+
+-- --- INIT ---
+pages["LocalPlayer"].Visible = true
+Log("success", "Phoenix Hub v9 Loaded. Press RightShift to hide.")
