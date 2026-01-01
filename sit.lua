@@ -15,7 +15,7 @@ local Config = {
     UI_Color = Color3.fromRGB(0, 170, 255)
 }
 
--- --- 2. ADVANCED TERMINAL (Top Left) ---
+-- --- 2. ADVANCED TERMINAL ---
 local ConsoleGui = Instance.new("ScreenGui", PlayerGui)
 local ConsoleFrame = Instance.new("Frame", ConsoleGui)
 ConsoleFrame.Size = UDim2.new(0, 280, 0, 200)
@@ -141,6 +141,21 @@ local playerTab = CreateTab("Players")
 local visTab = CreateTab("Visuals")
 local myTab = CreateTab("MyScripts")
 
+-- [[ TELEPORT TO SPAWN ]]
+AddButton(mainTab, "Teleport to Spawn", function()
+    local char = Player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local spawnLoc = workspace:FindFirstChildOfClass("SpawnLocation")
+        if spawnLoc then
+            char.HumanoidRootPart.CFrame = spawnLoc.CFrame + Vector3.new(0, 5, 0)
+            Log("success", "Teleported to SpawnLocation")
+        else
+            char.HumanoidRootPart.CFrame = CFrame.new(0, 10, 0)
+            Log("warn", "No SpawnLocation found. Tapped to Center.")
+        end
+    end
+end)
+
 -- Flight Control
 AddButton(mainTab, "Toggle WASD Flight", function()
     Config.FlyEnabled = not Config.FlyEnabled
@@ -194,4 +209,4 @@ end)
 
 -- --- INIT ---
 pages["LocalPlayer"].Visible = true
-Log("success", "Phoenix Hub v9 Loaded. Press RightShift to hide.")
+Log("success", "Phoenix Hub v9.1 Loaded. Press RightShift to hide.")
